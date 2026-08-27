@@ -1,6 +1,4 @@
-from asyncio import subprocess
 import tempfile
-import io
 import os
 import subprocess
 import sys
@@ -40,10 +38,6 @@ def run_code(submission:CodeSubmission):
             "output": output
         }
         
-        return {
-            "success": True,
-            "output": output
-        }
     except subprocess.TimeoutExpired:
         return {
             "success": False,
@@ -54,7 +48,8 @@ def run_code(submission:CodeSubmission):
             "success": False,
             "output": f"{type(err).__name__}: {str(err)}"
         }
-
+    finally:
+        os.remove(file_path)
 
     
 
