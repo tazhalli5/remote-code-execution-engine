@@ -1,5 +1,8 @@
+from asyncio import subprocess
+import tempfile
 import io
 import os
+import subprocess
 import sys
 from fastapi import FastAPI,HTTPException
 from pydantic import BaseModel
@@ -18,26 +21,39 @@ def health_check():
 def run_code(submission:CodeSubmission):
     if submission.language.lower()!="python":
         raise HTTPException(status_code=400,detail="only python code supported")
-    buffer=io.StringIO()
-    sys.stdout=buffer
+    with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as temp_file:
+        temp_file.write(submission.code)
+        file_path = temp_file.name
 
     try:
-        scope = {}
-        exec(submission.code, scope)
-        output = buffer.getvalue()
+        result = subprocess.run(
+            ["python", file_path],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        output = result.stdout if result.returncode == 0 else result.stderr
+
+        return {
+            "success": result.returncode == 0,
+            "exit_code": result.returncode,
+            "output": output
+        }
         
         return {
             "success": True,
             "output": output
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "success": False,
+            "output": "Error: Code execution timed out (5s limit exceeded)."
         }
     except Exception as err:
         return {
             "success": False,
             "output": f"{type(err).__name__}: {str(err)}"
         }
-
-    finally:
-        sys.stdout=sys.__stdout__
 
 
     
