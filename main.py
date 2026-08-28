@@ -21,9 +21,12 @@ def run_code(submission:CodeSubmission):
         raise HTTPException(status_code=400,detail="only python code supported")
     with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as temp_file:
         temp_file.write(submission.code)
-        file_path = temp_file.name
+        file_path = None
 
     try:
+        with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as temp_file:
+            temp_file.write(submission.code)
+            file_path = temp_file.name
         result = subprocess.run(
             ["python", file_path],
             capture_output=True,
