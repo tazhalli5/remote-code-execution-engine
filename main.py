@@ -2,9 +2,12 @@ import tempfile
 import os
 import subprocess
 import sys
+import docker
 from fastapi import FastAPI,HTTPException,Depends
 from pydantic import BaseModel,Field
 from sqlalchemy.orm import Session
+from requests.exceptions import ReadTimeout
+from docker.errors import APIError
 
 import models
 from database import engine, get_db
@@ -17,6 +20,46 @@ class CodeSubmission(BaseModel):
     code:str
     language:str="python"
 
+def run_in_docker(code: str, timeout: int = 5) -> dict:
+    client = docker.from_env()
+
+    container = client.containers.run(
+        image="python:3.11-slim",
+        command=["python", "-c", code],
+        network_mode="none",
+        mem_limit="128m",
+        nano_cpus=500000000,
+        detach=True,
+        remove=False
+    )
+
+    try:
+        result = container.wait(timeout=timeout)
+        exit_code = result.get("StatusCode", 1)
+        output_text = container.logs().decode("utf-8")
+        success = (exit_code == 0)
+
+        return {
+            "success": success,
+            "output": output_text if output_text else ("Execution succeeded." if success else "Execution failed.")
+        }
+
+    except (ReadTimeout, APIError, Exception):
+        try:
+            container.kill()
+        except Exception:
+            pass
+        return {
+            "success": False,
+            "output": f"Error: Code execution timed out ({timeout}s limit exceeded)."
+        }
+
+    finally:
+        try:
+            container.remove(force=True)
+        except Exception:
+            pass
+
 @app.get("/")
 def health_check():
     return {"status":"ok","message":"Remote Code Execution Engine Running"}
@@ -25,43 +68,13 @@ def health_check():
 def run_code(submission:CodeSubmission , db: Session = Depends(get_db)):
     if submission.language.lower()!="python":
         raise HTTPException(status_code=400,detail="only python code supported")
-    file_path = None
-    output = None
-    success = False
-    exit_code = None
-
-    try:
-        with tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w", encoding="utf-8") as temp_file:
-            temp_file.write(submission.code)
-            file_path = temp_file.name
-        result = subprocess.run(
-            ["python", file_path],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        output = result.stdout if result.returncode == 0 else result.stderr
-        success = result.returncode == 0
-        exit_code = result.returncode
-
-    except subprocess.TimeoutExpired:
-        output = "Error: Code execution timed out (5s limit exceeded)."
-        success = False
-
-    except Exception as err:
-        output = f"{type(err).__name__}: {str(err)}"
-        success = False
-
-    finally:
-        if file_path:
-            os.remove(file_path)
-
+    result = run_in_docker(submission.code)
 
     db_record = models.Submission(
         code=submission.code,
         language=submission.language,
-        output=output,
-        success=success
+        output=result["output"],
+        success=result["success"]
     )
     db.add(db_record)
     db.commit()
@@ -72,4 +85,9 @@ def run_code(submission:CodeSubmission , db: Session = Depends(get_db)):
         "success": db_record.success,
         "output": db_record.output,
         "created_at": db_record.created_at
-}
+    }
+
+
+@app.get("/submissions")
+def get_submissions(limit: int = 10, db: Session = Depends(get_db)):
+    return db.query(models.Submission).order_by(models.Submission.id.desc()).limit(limit).all()
