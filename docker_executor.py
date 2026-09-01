@@ -2,7 +2,7 @@ import docker
 from requests.exceptions import ReadTimeout
 from docker.errors import APIError
 
-# Map supported languages to their Docker image and execution command
+
 LANGUAGE_CONFIG = {
     "python": {
         "image": "python:3.11-slim",
