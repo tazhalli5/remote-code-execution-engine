@@ -1,0 +1,47 @@
+services:
+  api:
+    build: .
+    container_name: rce_api
+    restart: always
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://rce_user:rce_password@db:5432/rce_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - API_KEY=my-secret-key-123
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  db:
+    image: postgres:15-alpine
+    container_name: rce_db
+    restart: always
+    environment:
+      POSTGRES_USER: rce_user
+      POSTGRES_PASSWORD: rce_password
+      POSTGRES_DB: rce_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rce_user -d rce_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: rce_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data:

@@ -2,3 +2,7 @@ fastapi
 uvicorn
 docker
 sqlalchemy
+redis
+pydantic
+psycopg2-binary
+requests
