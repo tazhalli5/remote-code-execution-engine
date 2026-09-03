@@ -6,3 +6,4 @@ redis
 pydantic
 psycopg2-binary
 requests
+celery==5.3.6

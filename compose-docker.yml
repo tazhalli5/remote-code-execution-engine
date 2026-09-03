@@ -8,8 +8,6 @@ services:
     environment:
       - DATABASE_URL=postgresql://rce_user:rce_password@db:5432/rce_db
       - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - API_KEY=my-secret-key-123
     volumes:
       - //var/run/docker.sock:/var/run/docker.sock
     depends_on:
@@ -43,5 +41,21 @@ services:
     ports:
       - "6379:6379"
 
+  celery:
+    build: .
+    container_name: rce_celery
+    command: celery -A task.celery_app worker --loglevel=info
+    restart: always
+    volumes:
+      - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DATABASE_URL=postgresql://rce_user:rce_password@db:5432/rce_db
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+      - db
+
 volumes:
   postgres_data:
+       
