@@ -16,7 +16,7 @@ LANGUAGE_CONFIG = {
         "image": "gcc:latest",
         "command": lambda code: [
             "sh", "-c",
-            f'echo \'{code.replace("\'", "\'\\\'\'")}\' > /tmp/solution.cpp && g++ /tmp/solution.cpp -o /tmp/solution && /tmp/solution'
+            f'mkdir -p /workspace && echo \'{code.replace("\'", "\'\\\'\'")}\' > /workspace/solution.cpp && g++ /workspace/solution.cpp -o /workspace/solution && chmod +x /workspace/solution && /workspace/solution'
         ]
     }
 }
@@ -35,7 +35,6 @@ def run_in_docker(code: str, language: str = "python", timeout: int = 5) -> dict
     config = LANGUAGE_CONFIG[lang]
     client = docker.from_env()
 
-    
     container = client.containers.run(
         image=config["image"],
         command=config["command"](code),
@@ -47,7 +46,6 @@ def run_in_docker(code: str, language: str = "python", timeout: int = 5) -> dict
     )
 
     try:
-        
         result = container.wait(timeout=timeout)
         exit_code = result.get("StatusCode", 1)
         output_text = container.logs().decode("utf-8")
@@ -59,7 +57,6 @@ def run_in_docker(code: str, language: str = "python", timeout: int = 5) -> dict
         }
 
     except (ReadTimeout, APIError, Exception):
-        
         try:
             container.kill()
         except Exception:
@@ -70,7 +67,6 @@ def run_in_docker(code: str, language: str = "python", timeout: int = 5) -> dict
         }
 
     finally:
-        
         try:
             container.remove(force=True)
         except Exception:
