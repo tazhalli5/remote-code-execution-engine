@@ -1,16 +1,18 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import  declarative_base, sessionmaker
 import os
-from sqlalchemy.ext.declarative import declarative_base
-DATABASE_URL=os.getenv(
-    "DATABASE_URL",
-    "postgresql://postgres:tazeen@localhost:5432/code_executor"
-)
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-engine=create_engine(DATABASE_URL)
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://postgres:postgres@db:5432/rce_db"
+)
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine = create_engine(DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 Base = declarative_base()
+
 def get_db():
     db = SessionLocal()
     try:

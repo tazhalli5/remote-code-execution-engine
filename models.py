@@ -6,8 +6,10 @@ class Submission(Base):
     __tablename__ = "submissions"
 
     id = Column(Integer, primary_key=True, index=True)
+    language = Column(String(50), nullable=False)
     code = Column(Text, nullable=False)
-    language = Column(String(50), nullable=False, default="python")
-    output = Column(Text, nullable=True)
-    success = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    stdin = Column(Text, nullable=True, default="")
+    status = Column(String(20), nullable=False, default="PENDING")  
+    output = Column(Text, nullable=True, default="")
+    execution_time_ms = Column(Integer, nullable=True, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
