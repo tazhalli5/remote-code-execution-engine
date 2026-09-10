@@ -1,9 +1,9 @@
 fastapi
-uvicorn
-docker
-sqlalchemy
+uvicorn[standard]
+websockets
+celery
 redis
 pydantic
 psycopg2-binary
-requests
-celery==5.3.6
+sqlalchemy
+docker
