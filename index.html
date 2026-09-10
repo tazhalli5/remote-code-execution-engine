@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Code Execution Engine</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-bg: #252526;
+            --border-color: #3e3e42;
+            --text-color: #d4d4d4;
+            --accent-blue: #0e639c;
+            --accent-blue-hover: #1177bb;
+            --danger-red: #8b0000;
+            --danger-red-hover: #a50000;
+            --success-color: #23d160;
+            --fail-color: #ff3860;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: grid;
+            grid-template-columns: 1fr 340px;
+            gap: 20px;
+            height: calc(100vh - 40px);
+            box-sizing: border-box;
+        }
+
+        .main-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        select, button {
+            background-color: var(--panel-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        button.run-btn {
+            background-color: var(--accent-blue);
+            border-color: var(--accent-blue);
+            font-weight: bold;
+        }
+
+        button.run-btn:hover {
+            background-color: var(--accent-blue-hover);
+        }
+
+        button.clear-btn {
+            background-color: transparent;
+            border-color: var(--danger-red);
+            color: #ff6b6b;
+        }
+
+        button.clear-btn:hover {
+            background-color: var(--danger-red);
+            color: #fff;
+        }
+
+        .editor-section, .input-section, .output-section {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 0.85rem;
+            color: #aaaaaa;
+            font-weight: bold;
+        }
+
+        textarea {
+            background-color: var(--panel-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 10px;
+            font-family: "Consolas", "Courier New", monospace;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        #code-editor {
+            height: 220px;
+        }
+
+        #stdin-input {
+            height: 60px;
+        }
+
+        #console-output {
+            height: 140px;
+            background-color: #141414;
+            color: #33ff33;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+
+        .sidebar {
+            background-color: var(--panel-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-card {
+            background-color: #1e1e1e;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            transition: border-color 0.2s;
+        }
+
+        .history-card:hover {
+            border-color: #666;
+        }
+
+        .history-card-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+        }
+
+        .badge-success { background-color: var(--success-color); color: #000; }
+        .badge-failed { background-color: var(--fail-color); color: #fff; }
+        .badge-pending { background-color: #e6c07b; color: #000; }
+
+        .code-snippet {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-panel">
+        <div class="header">
+            <h2>Remote Code Execution Engine</h2>
+            <div class="controls">
+                <select id="language-select">
+                    <option value="python">Python 3</option>
+                    <option value="javascript">JavaScript (Node)</option>
+                    <option value="cpp">C++</option>
+                </select>
+                <button class="run-btn" onclick="submitCode()">Run Code</button>
+                <button onclick="loadHistory()">Refresh History</button>
+                <button class="clear-btn" onclick="clearHistory()">Clear History</button>
+            </div>
+        </div>
+
+        <div class="editor-section">
+            <label>Code Editor</label>
+            <textarea id="code-editor" placeholder="Write code here...">print("Hello, World!")</textarea>
+        </div>
+
+        <div class="input-section">
+            <label>Standard Input (STDIN)</label>
+            <textarea id="stdin-input" placeholder="Optional inputs..."></textarea>
+        </div>
+
+        <div class="output-section">
+            <label>Console Output</label>
+            <textarea id="console-output" readonly placeholder="Output will appear here..."></textarea>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3>Submission History</h3>
+        </div>
+        <div class="history-list" id="history-list"></div>
+    </div>
+
+    <script>
+        // Dynamically compute host and protocols so fetch and WebSockets always match the current domain/IP
+        const host = window.location.host || "127.0.0.1:8000";
+        const protocol = window.location.protocol === "https:" ? "https:" : "http:";
+        const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+        
+        const API_BASE = `${protocol}//${host}`;
+
+        async function submitCode() {
+            const language = document.getElementById("language-select").value;
+            const code = document.getElementById("code-editor").value;
+            const stdin = document.getElementById("stdin-input").value;
+            const outputArea = document.getElementById("console-output");
+
+            outputArea.value = "Submitting task to queue...";
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/submissions`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ language, code, stdin })
+                });
+
+                const rawText = await response.text();
+                let data;
+                try {
+                    data = JSON.parse(rawText);
+                } catch (e) {
+                    throw new Error("Server returned an internal error. Check backend logs.");
+                }
+
+                if (!response.ok) throw new Error(data.detail || "Submission failed");
+
+                outputArea.value = `Task Queued (ID: ${data.submission_id}). Waiting for execution...`;
+                
+                loadHistory();
+                connectWebSocket(data.submission_id);
+
+            } catch (err) {
+                outputArea.value = `Error: ${err.message}`;
+            }
+        }
+
+        function connectWebSocket(submissionId) {
+            const outputArea = document.getElementById("console-output");
+            const ws = new WebSocket(`${wsProtocol}//${host}/ws/submissions/${submissionId}`);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.output) {
+                    outputArea.value = data.output;
+                }
+                if (data.status === "SUCCESS" || data.status === "FAILED") {
+                    ws.close();
+                    loadHistory();
+                }
+            };
+
+            ws.onerror = () => {
+                setTimeout(loadHistory, 2000);
+            };
+        }
+
+        async function loadHistory() {
+            const historyList = document.getElementById("history-list");
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/submissions`);
+                const submissions = await res.json();
+
+                historyList.innerHTML = "";
+
+                if (!Array.isArray(submissions) || submissions.length === 0) {
+                    historyList.innerHTML = "<p style='font-size:0.8rem; color:#666;'>No submissions yet.</p>";
+                    return;
+                }
+
+                submissions.forEach(sub => {
+                    const card = document.createElement("div");
+                    card.className = "history-card";
+                    
+                    const badgeClass = sub.status === "SUCCESS" ? "badge-success" : 
+                                       sub.status === "FAILED" ? "badge-failed" : "badge-pending";
+
+                    card.innerHTML = `
+                        <div class="history-card-header">
+                            <span>${sub.language.toUpperCase()}</span>
+                            <span class="badge ${badgeClass}">${sub.status}</span>
+                        </div>
+                        <div class="code-snippet">${escapeHtml(sub.code)}</div>
+                    `;
+
+                    card.onclick = () => {
+                        document.getElementById("language-select").value = sub.language;
+                        document.getElementById("code-editor").value = sub.code;
+                        document.getElementById("stdin-input").value = sub.stdin || "";
+                        document.getElementById("console-output").value = sub.output || "";
+                    };
+
+                    historyList.appendChild(card);
+                });
+            } catch (err) {
+                console.error("Failed to load history:", err);
+            }
+        }
+
+        async function clearHistory() {
+            try {
+                await fetch(`${API_BASE}/api/v1/submissions`, { method: "DELETE" });
+            } catch (e) {
+                console.log("Delete endpoint not found, clearing UI locally.");
+            }
+            document.getElementById("history-list").innerHTML = "<p style='font-size:0.8rem; color:#666;'>No submissions yet.</p>";
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        window.onload = loadHistory;
+    </script>
+</body>
+</html>
