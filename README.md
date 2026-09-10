@@ -18,8 +18,6 @@ A distributed, secure Remote Code Execution Engine designed to compile and execu
 
 ---
 
----
-
 ## Tech Stack
 
 * **Backend Framework:** FastAPI (Python 3.11)
@@ -44,7 +42,6 @@ A distributed, secure Remote Code Execution Engine designed to compile and execu
    ```bash
    git clone [https://github.com/tazhalli5/remote-code-execution-engine.git](https://github.com/tazhalli5/remote-code-execution-engine.git)
    cd remote-code-execution-engine
-   ```
    ```
 2.**Start Services via Docker Compose:**
   ```bash
